@@ -1,6 +1,36 @@
 
 # Mixtape Bug Hunt — Project 5
 
+
+## AI Usage
+
+I used ChatGPT as an AI-assisted development tool throughout the Mixtape Bug Hunt project. It helped me understand the structure of an unfamiliar Flask application, navigate the codebase, investigate reported bugs, and document my debugging process.
+
+### Codebase Navigation
+
+I used ChatGPT to understand the responsibilities of the application's models, routes, and services. I provided the contents of relevant source files and used the explanations to trace how requests move from Flask routes to service functions and database models.
+
+### Debugging and Root Cause Analysis
+
+For Issue #5, ChatGPT helped me identify how Python list slicing affected playlist retrieval. I verified the issue using the existing playlist tests before applying the fix.
+
+For Issue #2, ChatGPT helped me understand the difference between a rolling 24-hour window and a calendar-day filter. I reproduced the issue with a regression test and verified the corrected behavior using tests for both yesterday's and today's listening activity.
+
+For Issue #1, ChatGPT explained how Python's weekday() function works and why the Sunday restriction prevented consecutive-day streaks from increasing. I verified the original failure and reran the streak tests after correcting the condition.
+
+### Implementation and Testing
+
+ChatGPT assisted with code changes, generating regression tests, and preparing documentation. I applied the changes in VS Code and ran the tests locally to verify the results.
+
+The debugging process included reviewing test failures, identifying specific causes, implementing targeted corrections, and checking that related functionality continued working.
+
+### Verification and Limitations
+
+I used local test results rather than relying solely on AI explanations. I also encountered a duplicate-email database error while testing Issue #2. The initial test setup was revised to use an isolated SQLite database, preventing repeated tests from conflicting with existing application data.
+
+AI assistance was useful for understanding and implementing the fixes, but the final verification was performed through the application's tests.
+
+
 ## Codebase Map
 
 ### Application Overview
