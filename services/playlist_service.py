@@ -1,3 +1,4 @@
+
 """
 services/playlist_service.py — Mixtape
 
@@ -39,7 +40,8 @@ def get_playlist_songs(playlist_id: str) -> list[dict]:
     """
     Get the ordered list of songs in a playlist.
 
-    Songs are returned in the order they were added (ascending by position).
+    Songs are returned in the order they were added
+    (ascending by position).
 
     Args:
         playlist_id: The ID of the playlist.
@@ -63,7 +65,8 @@ def get_playlist_songs(playlist_id: str) -> list[dict]:
         .all()
     )
 
-    return [song.to_dict() for song in songs[:-1]]
+    # Return every song, including the last one
+    return [song.to_dict() for song in songs]
 
 
 def get_playlist(playlist_id: str) -> dict:
@@ -92,5 +95,8 @@ def get_user_playlists(user_id: str) -> list[dict]:
     Returns:
         A list of playlist dicts.
     """
-    playlists = db.session.query(Playlist).filter_by(created_by=user_id).all()
+    playlists = db.session.query(Playlist).filter_by(
+        created_by=user_id
+    ).all()
+
     return [p.to_dict() for p in playlists]
