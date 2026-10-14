@@ -176,3 +176,62 @@ This confirmed that yesterday's listening activity is excluded while today's lis
 The tests also use a temporary database to avoid modifying the application's original data.
 
 
+### Issue #1 — My Listening Streak Keeps Resetting
+
+**1. How I Reproduced It**
+
+I ran the existing listening streak tests using:
+
+`python -m pytest tests/test_streaks.py -v`
+
+Before modifying the code, four tests passed and one failed.
+
+The failing test was `test_streak_increments_on_sunday`, which produced an AssertionError because the listening streak was 1 instead of the expected value of 2.
+
+This confirmed that the application incorrectly reset listening streaks on Sundays.
+
+**2. How I Found the Root Cause**
+
+I reviewed the application's structure and examined `services/streak_service.py`.
+
+I traced the streak update process from `record_listening_event()` to `update_listening_streak()`.
+
+Inside `update_listening_streak()`, I examined the conditions used to determine whether a streak should increment or reset.
+
+I identified an additional weekday restriction that prevented streaks from increasing on Sundays.
+
+**3. The Root Cause**
+
+The original code contained this condition:
+
+`elif days_since_last == 1 and today.weekday() != 6:`
+
+Python's `weekday()` method returns 6 for Sunday.
+
+Although `days_since_last == 1` correctly identified consecutive listening days, the additional condition `today.weekday() != 6` prevented the streak from incrementing on Sundays.
+
+Consequently, the application entered the else branch and reset the user's streak to 1, even when they listened on Saturday and Sunday.
+
+**4. My Fix**
+
+I removed the unnecessary weekday restriction.
+
+The updated condition is:
+
+`elif days_since_last == 1:`
+
+This ensures that listening streaks increment whenever a user listens on consecutive calendar days, regardless of the day of the week.
+
+The existing logic for first-time listening, repeated listening on the same day, and skipped days was preserved.
+
+**5. Side-Effect Check**
+
+After implementing the fix, I reran:
+
+`python -m pytest tests/test_streaks.py -v`
+
+All five tests passed.
+
+This confirmed that the Sunday boundary issue was resolved and the other tested listening streak behaviors continued working correctly.
+
+
