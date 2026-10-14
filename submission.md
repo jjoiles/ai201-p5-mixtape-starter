@@ -110,3 +110,69 @@ All three tests passed:
 This verified that the service returns all playlist songs, maintains their correct ordering, and handles empty playlists.
 
 
+### Issue #2 — Friends Listening Now Shows People From Yesterday
+
+**1. How I Reproduced It**
+
+I created a regression test in `tests/test_feed_today.py` to simulate a friend listening to a song at 11 PM yesterday and another user checking the feed at 9 AM today.
+
+Before modifying the service, the test failed because yesterday's listening activity appeared in the feed.
+
+The failure confirmed that the application was including activity from the previous calendar day.
+
+**2. How I Found the Root Cause**
+
+I reviewed `routes/feed.py` and traced the `/feed/<user_id>/listening-now` endpoint to `get_friends_listening_now()` in `services/feed_service.py`.
+
+I examined the filtering logic and identified that it calculated the cutoff by subtracting 24 hours from the current time.
+
+This explained why listening events from yesterday were still being returned.
+
+**3. The Root Cause**
+
+The service originally used:
+
+`RECENT_THRESHOLD = timedelta(hours=24)`
+
+and calculated the cutoff using:
+
+`cutoff = datetime.now(timezone.utc) - RECENT_THRESHOLD`
+
+This created a rolling 24-hour window rather than a calendar-day filter.
+
+For example, when checking the feed at 9 AM, a listening event from 11 PM yesterday was still within the previous 24 hours.
+
+As a result, the application incorrectly displayed yesterday's activity.
+
+**4. My Fix**
+
+I updated `get_friends_listening_now()` to calculate the beginning of the current UTC calendar day:
+
+`now = datetime.now(timezone.utc)`
+
+`start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)`
+
+I then updated the database query to include listening events occurring between `start_of_today` and `now`.
+
+This ensures that only today's listening activity appears in the feed.
+
+The general activity feed was left unchanged.
+
+**5. Side-Effect Check**
+
+I created two regression tests using an isolated SQLite test database:
+
+- `test_listening_now_excludes_yesterday`
+- `test_listening_now_includes_today`
+
+I ran:
+
+`python -m pytest tests/test_feed_today.py -v`
+
+Both tests passed.
+
+This confirmed that yesterday's listening activity is excluded while today's listening activity is still displayed correctly.
+
+The tests also use a temporary database to avoid modifying the application's original data.
+
+

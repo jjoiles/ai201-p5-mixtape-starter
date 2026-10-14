@@ -1,35 +1,36 @@
+
 """
 services/feed_service.py — Mixtape
 
 Handles the "Friends Listening Now" feed and activity feed logic.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from sqlalchemy import desc
 from app import db
 from models import User, Song, ListeningEvent
 
 
-RECENT_THRESHOLD = timedelta(hours=24)
-
-
 def get_friends_listening_now(user_id: str) -> list[dict]:
     """
-    Return a list of friends who have listened to something recently,
-    along with the song they were listening to.
+    Return friends who have listened to a song today,
+    starting at midnight UTC.
 
-    Args:
-        user_id: The ID of the current user.
-
-    Returns:
-        A list of dicts, each with 'friend', 'song', and 'listened_at' keys,
-        ordered by most recent first.
+    Results are ordered by most recent listening activity.
     """
     user = db.session.get(User, user_id)
     if not user:
         raise ValueError(f"User {user_id} not found")
 
-    cutoff = datetime.now(timezone.utc) - RECENT_THRESHOLD
+    # Use the start of today instead of a rolling 24-hour window.
+    now = datetime.now(timezone.utc)
+    start_of_today = now.replace(
+        hour=0,
+        minute=0,
+        second=0,
+        microsecond=0,
+    )
+
     friend_ids = [f.id for f in user.friends]
 
     if not friend_ids:
@@ -39,20 +40,24 @@ def get_friends_listening_now(user_id: str) -> list[dict]:
         db.session.query(ListeningEvent)
         .filter(
             ListeningEvent.user_id.in_(friend_ids),
-            ListeningEvent.listened_at >= cutoff,
+            ListeningEvent.listened_at >= start_of_today,
+            ListeningEvent.listened_at <= now,
         )
         .order_by(desc(ListeningEvent.listened_at))
         .all()
     )
 
-    # Deduplicate: only show the most recent song per friend
+    # Show only the most recent song per friend.
     seen_friends = set()
     result = []
+
     for event in recent_events:
         if event.user_id not in seen_friends:
             seen_friends.add(event.user_id)
+
             friend = db.session.get(User, event.user_id)
             song = db.session.get(Song, event.song_id)
+
             result.append({
                 "friend": friend.to_dict(),
                 "song": song.to_dict(),
@@ -64,23 +69,15 @@ def get_friends_listening_now(user_id: str) -> list[dict]:
 
 def get_activity_feed(user_id: str, limit: int = 20) -> list[dict]:
     """
-    Return a general activity feed of recent listening events from all friends.
-
-    Unlike get_friends_listening_now, this is not filtered by recency —
-    it returns the most recent N events regardless of when they happened.
-
-    Args:
-        user_id: The ID of the current user.
-        limit: Maximum number of events to return.
-
-    Returns:
-        A list of activity dicts ordered by most recent first.
+    Return a general activity feed of recent listening events
+    from all friends, regardless of when they happened.
     """
     user = db.session.get(User, user_id)
     if not user:
         raise ValueError(f"User {user_id} not found")
 
     friend_ids = [f.id for f in user.friends]
+
     if not friend_ids:
         return []
 
@@ -93,9 +90,11 @@ def get_activity_feed(user_id: str, limit: int = 20) -> list[dict]:
     )
 
     result = []
+
     for event in events:
         friend = db.session.get(User, event.user_id)
         song = db.session.get(Song, event.song_id)
+
         result.append({
             "friend": friend.to_dict(),
             "song": song.to_dict(),
@@ -103,3 +102,4 @@ def get_activity_feed(user_id: str, limit: int = 20) -> list[dict]:
         })
 
     return result
+
